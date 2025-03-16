@@ -47,17 +47,26 @@ class Game:
 def draw_border(stdscr, width, height):
     # Draw top and bottom borders
     for x in range(width):
-        stdscr.addch(0, x, "-")
-        stdscr.addch(height - 1, x, "-")
+        try:
+            stdscr.addch(0, x, ord("-"))
+            stdscr.addch(height - 1, x, ord("-"))
+        except curses.error:
+            pass
     # Draw left and right borders
     for y in range(height):
-        stdscr.addch(y, 0, "|")
-        stdscr.addch(y, width - 1, "|")
+        try:
+            stdscr.addch(y, 0, ord("|"))
+            stdscr.addch(y, width - 1, ord("|"))
+        except curses.error:
+            pass
     # Draw corners
-    stdscr.addch(0, 0, "+")
-    stdscr.addch(0, width - 1, "+")
-    stdscr.addch(height - 1, 0, "+")
-    stdscr.addch(height - 1, width - 1, "+")
+    try:
+        stdscr.addch(0, 0, ord("+"))
+        stdscr.addch(0, width - 1, ord("+"))
+        stdscr.addch(height - 1, 0, ord("+"))
+        stdscr.addch(height - 1, width - 1, ord("+"))
+    except curses.error:
+        pass
 
 
 def draw_game(stdscr, game, outer_width, outer_height):
@@ -71,18 +80,27 @@ def draw_game(stdscr, game, outer_width, outer_height):
         x = block.x + offset_x
         y = block.y + offset_y
         if x < outer_width - 1 and y < outer_height - 1:
-            stdscr.addch(y, x, "#")
+            try:
+                stdscr.addch(y, x, ord("#"))
+            except curses.error:
+                pass
     # Draw the player with a standout attribute
     player_x = game.player_x + offset_x
     player_y = game.player_y + offset_y
     if player_x < outer_width - 1 and player_y < outer_height - 1:
-        stdscr.addch(player_y, player_x, "@", curses.A_REVERSE)
+        try:
+            stdscr.addch(player_y, player_x, ord("@"), curses.A_REVERSE)
+        except curses.error:
+            pass
 
     # Draw the score on the top border
     score_str = f" Score: {game.score} "
     for i, ch in enumerate(score_str):
         if 2 + i < outer_width - 1:
-            stdscr.addch(0, 2 + i, ch)
+            try:
+                stdscr.addch(0, 2 + i, ord(ch))
+            except curses.error:
+                pass
     stdscr.refresh()
 
 
@@ -90,7 +108,10 @@ def put_centered(stdscr, msg):
     height, width = stdscr.getmaxyx()
     start_x = (width - len(msg)) // 2
     start_y = height // 2
-    stdscr.addstr(start_y, start_x, msg)
+    try:
+        stdscr.addstr(start_y, start_x, msg)
+    except curses.error:
+        pass
     stdscr.refresh()
 
 
