@@ -22,22 +22,22 @@ class Game:
         self.height = height
 
     def update(self):
-        # Spawn new blocks along the top row for each column
+        # Spawn new blocks along the top row for each column.
         for x in range(self.width):
             if random.random() < NEW_BLOCK_PROBABILITY:
                 self.blocks.append(FallingBlock(x, 0))
-        # Move blocks down and remove those that have moved off-screen
+        # Move blocks down and remove those that have moved off-screen.
         new_blocks = []
         for block in self.blocks:
             block.y += 1
             if block.y < self.height:
                 new_blocks.append(block)
         self.blocks = new_blocks
-        # Increase score as time passes
+        # Increase score as time passes.
         self.score += 1
 
     def check_collision(self):
-        # Return True if any block occupies the same position as the player
+        # Return True if any block occupies the same position as the player.
         for block in self.blocks:
             if block.x == self.player_x and block.y == self.player_y:
                 return True
@@ -70,7 +70,7 @@ def draw_border(stdscr, width, height):
 
 
 def draw_game(stdscr, game, outer_width, outer_height):
-    stdscr.erase()  # Erase current content without forcing an immediate redraw.
+    stdscr.erase()  # Erase current content without an immediate physical update.
     draw_border(stdscr, outer_width, outer_height)
     # The playable area is inside the border (offset by 1).
     offset_x, offset_y = 1, 1
@@ -102,6 +102,7 @@ def draw_game(stdscr, game, outer_width, outer_height):
                 stdscr.addch(0, 2 + i, ord(ch))
             except curses.error:
                 pass
+
     stdscr.noutrefresh()  # Mark the window for refresh.
     curses.doupdate()  # Update the physical screen all at once.
 
@@ -119,7 +120,12 @@ def put_centered(stdscr, msg):
 
 
 def main(stdscr):
-    # Set up curses.
+    # Initialize colors.
+    curses.start_color()
+    curses.use_default_colors()
+    # Set the background to use the terminal's default.
+    stdscr.bkgd(" ", curses.A_NORMAL)
+
     curses.curs_set(0)  # Hide the cursor.
     stdscr.nodelay(True)  # Non-blocking input.
     stdscr.timeout(0)
@@ -159,6 +165,8 @@ def main(stdscr):
 
     # Game over: clear the screen and display a final score message.
     stdscr.erase()
+    # Reset the background to default before exiting.
+    stdscr.bkgd(" ", curses.A_NORMAL)
     msg = f"Game Over! Final Score: {game.score}. Press any key to exit."
     put_centered(stdscr, msg)
     stdscr.nodelay(False)
