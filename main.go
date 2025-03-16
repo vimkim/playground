@@ -1,158 +1,104 @@
 package main
 
 import (
-	"fmt"
 	"math/rand"
-	"os"
-	"os/signal"
 	"time"
 
-	"github.com/eiannone/keyboard"
-)
-
-const (
-	screenWidth  = 30
-	screenHeight = 20
-	playerChar   = "A"
-	obstacleChar = "X"
-	emptyChar    = " "
+	"github.com/rthornton128/goncurses"
 )
 
 type Obstacle struct {
 	x, y int
 }
 
-func clearScreen() {
-	// ANSI escape sequence to clear screen and move cursor to top-left.
-	fmt.Print("\033[2J\033[H")
-}
-
-func drawScreen(playerX int, obstacles []Obstacle) {
-	// Create a 2D grid representing the screen.
-	screen := make([][]string, screenHeight)
-	for i := 0; i < screenHeight; i++ {
-		screen[i] = make([]string, screenWidth)
-		for j := 0; j < screenWidth; j++ {
-			screen[i][j] = emptyChar
-		}
-	}
-
-	// Place obstacles
-	for _, obs := range obstacles {
-		if obs.y >= 0 && obs.y < screenHeight && obs.x >= 0 && obs.x < screenWidth {
-			screen[obs.y][obs.x] = obstacleChar
-		}
-	}
-
-	// Place player on the bottom row.
-	if playerX >= 0 && playerX < screenWidth {
-		screen[screenHeight-1][playerX] = playerChar
-	}
-
-	// Draw the screen.
-	for _, row := range screen {
-		for _, ch := range row {
-			fmt.Print(ch)
-		}
-		fmt.Println()
-	}
-}
-
 func main() {
+	// Initialize ncurses
+	stdscr, err := goncurses.Init()
+	if err != nil {
+		panic(err)
+	}
+	defer goncurses.End()
+
+	// Set terminal modes
+	goncurses.Echo(false)
+	goncurses.CBreak(true)
+	stdscr.Keypad(true)
+	stdscr.Timeout(0) // non-blocking input
+
+	// Get screen dimensions
+	maxY, maxX := stdscr.MaxYX()
+
+	// Player settings (placed at the bottom center)
+	playerX := maxX / 2
+	playerY := maxY - 1
+
+	var obstacles []Obstacle
 	rand.Seed(time.Now().UnixNano())
 
-	// Initialize player position.
-	playerX := screenWidth / 2
-
-	// Create a slice to hold obstacles.
-	var obstacles []Obstacle
-
-	// Set up a ticker for game updates.
+	// Game timing
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
-
-	// Channel to capture interrupts (Ctrl+C) to exit gracefully.
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt)
-
-	// Initialize keyboard input.
-	if err := keyboard.Open(); err != nil {
-		fmt.Println("Error opening keyboard:", err)
-		return
-	}
-	defer keyboard.Close()
-
-	// Game loop
-	gameOver := false
 	frameCount := 0
+	gameOver := false
 
-	clearScreen()
-	go func() {
-		// Listen for keyboard events.
-		for {
-			char, key, err := keyboard.GetKey()
-			if err != nil {
-				fmt.Println("Error reading key:", err)
-				return
-			}
-			if key == keyboard.KeyEsc || key == keyboard.KeyCtrlC {
-				gameOver = true
-				return
-			}
-
-			// Move left or right
-			if char == 'a' || key == keyboard.KeyArrowLeft {
+	// Main game loop
+	for !gameOver {
+		// Non-blocking input
+		ch := stdscr.GetChar()
+		if ch != 0 {
+			switch ch {
+			case 'a', goncurses.KEY_LEFT:
 				if playerX > 0 {
 					playerX--
 				}
-			} else if char == 'd' || key == keyboard.KeyArrowRight {
-				if playerX < screenWidth-1 {
+			case 'd', goncurses.KEY_RIGHT:
+				if playerX < maxX-1 {
 					playerX++
 				}
+			case 'q': // quit game
+				gameOver = true
 			}
 		}
-	}()
 
-	for !gameOver {
-		select {
-		case <-sigChan:
-			gameOver = true
-		case <-ticker.C:
-			// Every few frames, add a new obstacle at a random column at the top.
-			if frameCount%10 == 0 {
-				newObs := Obstacle{
-					x: rand.Intn(screenWidth),
-					y: 0,
-				}
-				obstacles = append(obstacles, newObs)
+		// Every 10 frames, add a new obstacle at a random x position at the top.
+		if frameCount%10 == 0 {
+			newObstacle := Obstacle{
+				x: rand.Intn(maxX),
+				y: 0,
 			}
-
-			// Move obstacles down.
-			newObstacles := []Obstacle{}
-			for _, obs := range obstacles {
-				obs.y++
-				// Check collision: if an obstacle reaches the bottom row and collides with the player.
-				if obs.y == screenHeight-1 && obs.x == playerX {
-					gameOver = true
-				}
-				// Keep obstacles that are still visible.
-				if obs.y < screenHeight {
-					newObstacles = append(newObstacles, obs)
-				}
-			}
-			obstacles = newObstacles
-
-			// Redraw screen.
-			clearScreen()
-			drawScreen(playerX, obstacles)
-
-			frameCount++
+			obstacles = append(obstacles, newObstacle)
 		}
+
+		// Update obstacles: move down and check for collision with the player.
+		newObstacles := []Obstacle{}
+		for _, obs := range obstacles {
+			obs.y++
+			if obs.y == playerY && obs.x == playerX {
+				gameOver = true
+			}
+			if obs.y < maxY {
+				newObstacles = append(newObstacles, obs)
+			}
+		}
+		obstacles = newObstacles
+
+		// Draw the frame
+		stdscr.Clear()
+		for _, obs := range obstacles {
+			stdscr.MoveAddChar(obs.y, obs.x, 'X')
+		}
+		stdscr.MoveAddChar(playerY, playerX, 'A')
+		stdscr.Refresh()
+
+		// Wait for the next tick
+		<-ticker.C
+		frameCount++
 	}
 
-	// Game Over screen
-	clearScreen()
-	fmt.Println("Game Over!")
-	fmt.Println("Press any key to exit...")
-	keyboard.GetKey() // wait for a key press before exit.
+	// Display Game Over message
+	stdscr.Clear()
+	msg := "Game Over! Press any key..."
+	stdscr.MovePrint(maxY/2, (maxX-len(msg))/2, msg)
+	stdscr.Refresh()
+	stdscr.GetChar() // Wait for a key press before exiting.
 }
