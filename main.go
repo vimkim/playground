@@ -169,7 +169,6 @@ func main() {
 		}
 	}()
 
-	gameOver := false
 Loop:
 	for {
 		select {
@@ -197,7 +196,6 @@ Loop:
 		case <-ticker.C:
 			game.Update()
 			if game.CheckCollision() {
-				gameOver = true
 				break Loop
 			}
 			drawGame(s, game, outerWidth, outerHeight)
