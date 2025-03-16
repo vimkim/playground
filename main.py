@@ -45,21 +45,21 @@ class Game:
 
 
 def draw_border(stdscr, width, height):
-    # Draw top and bottom borders
+    # Draw top and bottom borders.
     for x in range(width):
         try:
             stdscr.addch(0, x, ord("-"))
             stdscr.addch(height - 1, x, ord("-"))
         except curses.error:
             pass
-    # Draw left and right borders
+    # Draw left and right borders.
     for y in range(height):
         try:
             stdscr.addch(y, 0, ord("|"))
             stdscr.addch(y, width - 1, ord("|"))
         except curses.error:
             pass
-    # Draw corners
+    # Draw corners.
     try:
         stdscr.addch(0, 0, ord("+"))
         stdscr.addch(0, width - 1, ord("+"))
@@ -70,12 +70,12 @@ def draw_border(stdscr, width, height):
 
 
 def draw_game(stdscr, game, outer_width, outer_height):
-    stdscr.clear()
+    stdscr.erase()  # Erase current content without forcing an immediate redraw.
     draw_border(stdscr, outer_width, outer_height)
-    # The playable area is inside the border (offset by 1)
+    # The playable area is inside the border (offset by 1).
     offset_x, offset_y = 1, 1
 
-    # Draw falling blocks
+    # Draw falling blocks.
     for block in game.blocks:
         x = block.x + offset_x
         y = block.y + offset_y
@@ -84,7 +84,8 @@ def draw_game(stdscr, game, outer_width, outer_height):
                 stdscr.addch(y, x, ord("#"))
             except curses.error:
                 pass
-    # Draw the player with a standout attribute
+
+    # Draw the player with a standout attribute.
     player_x = game.player_x + offset_x
     player_y = game.player_y + offset_y
     if player_x < outer_width - 1 and player_y < outer_height - 1:
@@ -93,7 +94,7 @@ def draw_game(stdscr, game, outer_width, outer_height):
         except curses.error:
             pass
 
-    # Draw the score on the top border
+    # Draw the score on the top border.
     score_str = f" Score: {game.score} "
     for i, ch in enumerate(score_str):
         if 2 + i < outer_width - 1:
@@ -101,7 +102,8 @@ def draw_game(stdscr, game, outer_width, outer_height):
                 stdscr.addch(0, 2 + i, ord(ch))
             except curses.error:
                 pass
-    stdscr.refresh()
+    stdscr.noutrefresh()  # Mark the window for refresh.
+    curses.doupdate()  # Update the physical screen all at once.
 
 
 def put_centered(stdscr, msg):
@@ -112,15 +114,16 @@ def put_centered(stdscr, msg):
         stdscr.addstr(start_y, start_x, msg)
     except curses.error:
         pass
-    stdscr.refresh()
+    stdscr.noutrefresh()
+    curses.doupdate()
 
 
 def main(stdscr):
-    # Set up curses
-    curses.curs_set(0)  # Hide the cursor
-    stdscr.nodelay(True)  # Non-blocking input
+    # Set up curses.
+    curses.curs_set(0)  # Hide the cursor.
+    stdscr.nodelay(True)  # Non-blocking input.
     stdscr.timeout(0)
-    stdscr.clear()
+    stdscr.erase()
 
     outer_height, outer_width = stdscr.getmaxyx()
     # Define the playable area inside a 1-character border.
@@ -131,7 +134,7 @@ def main(stdscr):
     last_tick = time.time()
 
     while True:
-        # Handle input
+        # Handle input.
         ch = stdscr.getch()
         if ch != -1:
             if ch == curses.KEY_LEFT:
@@ -140,10 +143,10 @@ def main(stdscr):
             elif ch == curses.KEY_RIGHT:
                 if game.player_x < game.width - 1:
                     game.player_x += 1
-            elif ch == ord("q") or ch == 27:  # 27 is Escape
+            elif ch == ord("q") or ch == 27:  # 27 is Escape.
                 break
 
-        # Update game state on tick
+        # Update game state on tick.
         now = time.time()
         if now - last_tick >= TICK_RATE:
             game.update()
@@ -152,10 +155,10 @@ def main(stdscr):
             last_tick = now
             draw_game(stdscr, game, outer_width, outer_height)
 
-        time.sleep(0.01)  # Small delay to reduce CPU usage
+        time.sleep(0.005)  # Slight delay to reduce CPU usage.
 
     # Game over: clear the screen and display a final score message.
-    stdscr.clear()
+    stdscr.erase()
     msg = f"Game Over! Final Score: {game.score}. Press any key to exit."
     put_centered(stdscr, msg)
     stdscr.nodelay(False)
