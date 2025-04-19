@@ -26,32 +26,31 @@ func worker(id int, jobs chan Job, results chan<- Job) {
 }
 
 func main() {
-	arr := []int{3, 5, 11, 10, 7, 2, 8} // Input array
-	jobs := make(chan Job)
+	arr := []int{3, 5, 11, 10, 7, 2, 8, 8, 8, 8, 8, 8, 8}
+	jobs := make(chan Job, len(arr))
 	results := make(chan Job)
 
-	// Spawn 4 goroutines
 	for i := 1; i <= 4; i++ {
 		go worker(i, jobs, results)
 	}
 
 	go func() {
-		// Convert array elements to Job structs and send to jobs channel
 		for i, val := range arr {
 			jobs <- Job{ID: i + 1, Value: val}
 		}
 	}()
 
 	resultArr := make([]Job, len(arr))
-	for range arr {
+	for i := range arr {
 		result := <-results
 		fmt.Printf("Job ID: %d, Final Value: %d\n", result.ID, result.Value)
-		resultArr = append(resultArr, result)
+		resultArr[i] = result
 	}
+
 	for i, val := range resultArr {
 		fmt.Printf("Result %d: ID: %d, Value: %d\n", i+1, val.ID, val.Value)
 	}
-
 	close(jobs)
-	close(results)
+
+	// No need to close results unless you're ranging over it elsewhere
 }
